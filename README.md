@@ -5,17 +5,20 @@ Extensible wrapper over Spark Structured Streaming that facilitates custom proce
 
 Scratch usage (pseudocode):
 ```
-input_data = make_some_spark_sql_operations_to_prepare_your_dataset()
+import smaz.Engine
 
-data_stream_writer = smaz
-.input(input_data)
+inputData = prepareYourDataset()
+
+engine = new Engine()
+.input(inputData)
 .spec(<config file that declares supported processors>)
 .key("input column name")
-.event_time("input column name")
-.timeout 
+.eventTime("input column name")
+.sessionTimeout(<how many miliseconds must pass when a new session should start>)
 .output(INTERVAL, <miliseconds of event time when you want a new row out>)
 
-do_something_with_your(data_stream_writer)
+dataStreamWriter = engine.dataStreamWriter()
+doSomethingWithYour(dataStreamWriter)
 ```
 
 Config file could be a YAML:
@@ -32,10 +35,11 @@ You will get an output periodically sends a sum of values in SOME_INPUT_COLUMN.
 
 
 TODO:
+- determine the safe scope
 - write the initial version (it's not a copy-paste unfortunately)
-- make the interface extensible
 - figure out nested processors
 - figure out shared processor state, e.g. if you consider quantiles
-- make yaml more concise
 - consider other output modes than event time interval (there was a batch marker one and a count based?)
+
+
  
