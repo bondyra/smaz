@@ -21,19 +21,6 @@ dataStreamWriter = engine.dataStreamWriter()
 doSomethingWithYour(dataStreamWriter)
 ```
 
-Config file could be a YAML:
-```
-- proc1
-    class: omg.bondyra.smaz.processors.Sum
-    column: SUM_OF_STUFF
-    args:
-        input_column:
-            type: string
-            value: SOME_INPUT_COLUMN
-```
-You will get an output periodically sends a sum of values in SOME_INPUT_COLUMN.
-
-
 TODO:
 - determine the safe scope
 - write the initial version (it's not a copy-paste unfortunately)
@@ -41,5 +28,9 @@ TODO:
 - figure out shared processor state, e.g. if you consider quantiles
 - consider other output modes than event time interval (there was a batch marker one and a count based?)
 
+the scope as of Feb 2021:
+- slow TDD rewrite
+- no YAML or other declarative config
+- basic ops without shared state
 
  
