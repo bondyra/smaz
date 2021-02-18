@@ -10,12 +10,11 @@ import smaz.Engine
 inputData = prepareYourDataset()
 
 engine = new Engine()
-.input(inputData)
-.spec(<config file that declares supported processors>)
-.key("input column name")
-.eventTime("input column name")
+.inputData(inputData)
+.identifierColumn("input column name")
+.eventTimeColumn("input column name")
 .sessionTimeout(<how many miliseconds must pass when a new session should start>)
-.output(INTERVAL, <miliseconds of event time when you want a new row out>)
+.intervalOutput(<miliseconds of event time when you want a new row out>)
 
 dataStreamWriter = engine.dataStreamWriter()
 doSomethingWithYour(dataStreamWriter)

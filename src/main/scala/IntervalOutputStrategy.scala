@@ -1,0 +1,1 @@
+class IntervalOutputStrategy(val intervalLengthInMiliseconds: Long) extends OutputStrategy

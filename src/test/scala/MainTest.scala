@@ -1,6 +1,6 @@
 import org.scalatest.FunSuite
 
-class HelloTest extends FunSuite {
+class MainTest extends FunSuite {
 
   test("dupa2") {
     assert(true)
