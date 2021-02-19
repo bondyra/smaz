@@ -32,4 +32,4 @@ the scope as of Feb 2021:
 - no YAML or other declarative config
 - basic ops without shared state
 
- 
+![state high level design](doc/smaz0.png?raw=true)
