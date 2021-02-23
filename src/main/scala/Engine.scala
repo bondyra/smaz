@@ -1,3 +1,7 @@
+import org.apache.spark.sql.streaming.{GroupState, GroupStateTimeout, OutputMode}
+import org.apache.spark.sql.{DataFrame, Dataset, Encoder, Encoders, Row}
+case class InputRow(identifier: String, eventTime: Double)
+
 class Engine private(
                       val inputData: Int,
                       val identifierColumn: String,
@@ -6,6 +10,24 @@ class Engine private(
                       val outputStrategy: OutputStrategy
                     ) {
 
+  implicit val stringEncoder: Encoder[String] = Encoders.kryo[String]
+  implicit val stateEncoder: Encoder[State] = Encoders.kryo[State]
+  implicit val outputEncoder: Encoder[OutputRow] = Encoders.kryo[OutputRow]
+
+
+  def doStuff[I <: InputRow](dataset: Dataset[I]): DataFrame = {
+    dataset
+      .groupByKey(_.identifier)
+      .flatMapGroupsWithState[State, OutputRow](
+        OutputMode.Append(),
+        GroupStateTimeout.NoTimeout() // TODO: the state could have configured expiration time
+      )(procFunc)
+      .select("*")  // TODO return dataset<outputRow> ? what to type and what not?
+  }
+
+  def procFunc(s: String, inputs: Iterator[InputRow], state: GroupState[State]): Iterator[OutputRow] = {
+    return Iterator.empty
+  }
 }
 
 object Engine {
