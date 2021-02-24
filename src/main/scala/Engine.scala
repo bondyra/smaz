@@ -2,71 +2,70 @@ import org.apache.spark.sql.streaming.{GroupState, GroupStateTimeout, OutputMode
 import org.apache.spark.sql.{DataFrame, Dataset, Encoder, Encoders, Row}
 case class InputRow(identifier: String, eventTime: Double)
 
-class Engine private(
-                      val inputData: Int,
-                      val identifierColumn: String,
-                      val eventTimeColumn: String,
+class Engine[I] private(
+                       // TODO: if I pass column names here and acquire values with reflection
+                       // I will be able to pass the names of columns to output
+                      val idFunc: I => String,
+                      val eventTimeFunc: I => String,
                       val sessionTimeout: Long,
                       val outputStrategy: OutputStrategy
                     ) {
 
   implicit val stringEncoder: Encoder[String] = Encoders.kryo[String]
-  implicit val stateEncoder: Encoder[State] = Encoders.kryo[State]
-  implicit val outputEncoder: Encoder[OutputRow] = Encoders.kryo[OutputRow]
+  implicit val stateEncoder: Encoder[State[I]] = Encoders.kryo[State[I]]
+  implicit val outputEncoder: Encoder[Output] = Encoders.kryo[Output]
 
 
-  def doStuff[I <: InputRow](dataset: Dataset[I]): DataFrame = {
+  def run(dataset: Dataset[I]): DataFrame = {
     dataset
-      .groupByKey(_.identifier)
-      .flatMapGroupsWithState[State, OutputRow](
+      .groupByKey(idFunc)
+      .flatMapGroupsWithState[State[I], Output](
         OutputMode.Append(),
-        GroupStateTimeout.NoTimeout() // TODO: the state could have configured expiration time
+        GroupStateTimeout.NoTimeout()
       )(procFunc)
-      .select("*")  // TODO return dataset<outputRow> ? what to type and what not?
+      .select("*")
   }
 
-  def procFunc(s: String, inputs: Iterator[InputRow], state: GroupState[State]): Iterator[OutputRow] = {
-    return Iterator.empty
+  def procFunc(s: String, inputs: Iterator[I], groupState: GroupState[State[I]]): Iterator[Output] = {
+    val state: State[I] = if (groupState.exists) groupState.get else new State[I]()
+    for (input <- inputs){
+      state.update(input)
+    }
+    groupState.update(state)
+    state.outputs()
   }
 }
 
 object Engine {
-  class Builder {
-    private var inputData: Option[Int] = None
-    private var idColumn: Option[String] = None
-    private var timeColumn: Option[String] = None
+  class Builder[I] {
+    private var idFunc: Option[I => String] = None
+    private var eventTimeFunc: Option[I => String] = None
     private var sessionTimeout: Option[Long] = None
     private var outputStrategy: Option[OutputStrategy] = None
 
-    def inputData(_inputData: Int): Builder = {
-      inputData = Option(_inputData)
+    def idFunc(_idFunc: I => String): Builder[I] = {
+      idFunc = Option(_idFunc)
       this
     }
 
-    def identifierColumn(idColumnName: String): Builder = {
-      idColumn = Option(idColumnName)
+    def eventTimeFunc(_eventTimeFunc: I => String): Builder[I] = {
+      eventTimeFunc = Option(_eventTimeFunc)
       this
     }
 
-    def eventTimeColumn(timeColumnName: String): Builder = {
-      timeColumn = Option(timeColumnName)
-      this
-    }
-
-    def sessionTimeout(sessionTimeoutInMiliseconds: Long): Builder = {
+    def sessionTimeout(sessionTimeoutInMiliseconds: Long): Builder[I] = {
       sessionTimeout = Option(sessionTimeoutInMiliseconds)
       this
     }
 
-    def intervalOutput(intervalLengthInMiliseconds: Long): Builder = {
+    def intervalOutput(intervalLengthInMiliseconds: Long): Builder[I] = {
       outputStrategy = Option(new IntervalOutputStrategy(intervalLengthInMiliseconds))
       this
     }
 
-    def build(): Engine = new Engine(
-      inputData=resolveOption(inputData, "Specify the input data set"),
-      identifierColumn=resolveOption(idColumn, "Specify name of the column that stores identifiers"),
-      eventTimeColumn=resolveOption(timeColumn, "Specify name of the column that stores event times"),
+    def build(): Engine[I] = new Engine[I](
+      idFunc=resolveOption(idFunc, "Specify mapping to id column"),
+      eventTimeFunc=resolveOption(eventTimeFunc, "Specify mapping to event time column"),
       sessionTimeout=resolveOption(sessionTimeout, "Configure session timeout"),
       outputStrategy=resolveOption(outputStrategy, "Configure output strategy")
     )
@@ -77,5 +76,5 @@ object Engine {
 
   class BuildException(message: String) extends Exception
 
-  def builder(): Builder = new Builder
+  def builder[I](): Builder[I] = new Builder[I]
 }

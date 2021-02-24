@@ -16,7 +16,6 @@ class EngineTest extends FunSuite {
   test("User cannot create engine without configured identifier column"){
     assertThrows[BuildException](
       Engine.builder()
-        .inputData(1)
         .eventTimeColumn("a")
         .intervalOutput(1)
         .sessionTimeout(1)
