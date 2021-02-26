@@ -1,14 +1,16 @@
+package pl.bondyra.smaz
+
+
 import org.apache.spark.sql.streaming.{GroupState, GroupStateTimeout, OutputMode}
-import org.apache.spark.sql.{DataFrame, Dataset, Encoder, Encoders, Row}
+import org.apache.spark.sql.{DataFrame, Dataset, Encoder, Encoders}
+import pl.bondyra.smaz.output.{IntervalOutputStrategy, Output}
+import pl.bondyra.smaz.state.{State}
 case class InputRow(identifier: String, eventTime: Double)
 
 class Engine[I] private(
-                       // TODO: if I pass column names here and acquire values with reflection
-                       // I will be able to pass the names of columns to output
                       val idFunc: I => String,
                       val eventTimeFunc: I => String,
-                      val sessionTimeout: Long,
-                      val outputStrategy: OutputStrategy
+                      val stateCreator: () => State[I]
                     ) {
 
   implicit val stringEncoder: Encoder[String] = Encoders.kryo[String]
@@ -23,11 +25,11 @@ class Engine[I] private(
         OutputMode.Append(),
         GroupStateTimeout.NoTimeout()
       )(procFunc)
-      .select("*")
+      .select(Output.columnsToSelect: _*)
   }
 
   def procFunc(s: String, inputs: Iterator[I], groupState: GroupState[State[I]]): Iterator[Output] = {
-    val state: State[I] = if (groupState.exists) groupState.get else new State[I]()
+    val state: State[I] = if (groupState.exists) groupState.get else stateCreator()
     for (input <- inputs){
       state.update(input)
     }
@@ -40,8 +42,7 @@ object Engine {
   class Builder[I] {
     private var idFunc: Option[I => String] = None
     private var eventTimeFunc: Option[I => String] = None
-    private var sessionTimeout: Option[Long] = None
-    private var outputStrategy: Option[OutputStrategy] = None
+    private var stateCreator: Option[() => State[I]] = None
 
     def idFunc(_idFunc: I => String): Builder[I] = {
       idFunc = Option(_idFunc)
@@ -53,28 +54,21 @@ object Engine {
       this
     }
 
-    def sessionTimeout(sessionTimeoutInMiliseconds: Long): Builder[I] = {
-      sessionTimeout = Option(sessionTimeoutInMiliseconds)
-      this
-    }
-
-    def intervalOutput(intervalLengthInMiliseconds: Long): Builder[I] = {
-      outputStrategy = Option(new IntervalOutputStrategy(intervalLengthInMiliseconds))
+    def intervalOutput(intervalInMiliseconds: Long): Builder[I] = {
+      stateCreator = Option(() => new State[I](new IntervalOutputStrategy(intervalInMiliseconds)))
       this
     }
 
     def build(): Engine[I] = new Engine[I](
-      idFunc=resolveOption(idFunc, "Specify mapping to id column"),
-      eventTimeFunc=resolveOption(eventTimeFunc, "Specify mapping to event time column"),
-      sessionTimeout=resolveOption(sessionTimeout, "Configure session timeout"),
-      outputStrategy=resolveOption(outputStrategy, "Configure output strategy")
+      idFunc=resolveOption(idFunc),
+      eventTimeFunc=resolveOption(eventTimeFunc),
+      stateCreator=resolveOption(stateCreator)
     )
 
-    private def resolveOption[A](option: Option[A], errorMessage: String): A =
-      option.getOrElse(throw new BuildException(errorMessage))
+    private def resolveOption[A](option: Option[A]): A = option.getOrElse(throw new BuildException())
   }
 
-  class BuildException(message: String) extends Exception
+  class BuildException() extends Exception
 
   def builder[I](): Builder[I] = new Builder[I]
 }

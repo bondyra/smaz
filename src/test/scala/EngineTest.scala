@@ -1,5 +1,6 @@
-import Engine.BuildException
 import org.scalatest.FunSuite
+import pl.bondyra.smaz.Engine
+import pl.bondyra.smaz.output.IntervalOutputStrategy
 
 class EngineTest extends FunSuite {
   test("User cannot create engine without configured input dataset"){
@@ -34,7 +35,7 @@ class EngineTest extends FunSuite {
     )
   }
 
-  test("User cannot create engine without configured output mode"){
+  test("User cannot create engine without configured pl.bondyra.smaz.output mode"){
     assertThrows[BuildException](
       Engine.builder()
         .inputData(1)

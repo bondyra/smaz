@@ -5,11 +5,11 @@ Extensible wrapper over Spark Structured Streaming that facilitates custom proce
 
 Scratch usage (pseudocode):
 ```
-import smaz.Engine
+import smaz.pl.bondyra.smaz.Engine
 
 inputData = prepareYourDataset()
 
-engine = new Engine()
+engine = new pl.bondyra.smaz.Engine()
 .inputData(inputData)
 .identifierColumn("input column name")
 .eventTimeColumn("input column name")
@@ -25,7 +25,7 @@ TODO:
 - write the initial version (it's not a copy-paste unfortunately)
 - figure out nested processors
 - figure out shared processor state, e.g. if you consider quantiles
-- consider other output modes than event time interval (there was a batch marker one and a count based?)
+- consider other pl.bondyra.smaz.output modes than event time interval (there was a batch marker one and a count based?)
 
 the scope as of Feb 2021:
 - slow TDD rewrite
