@@ -12,7 +12,7 @@ case class Output (
 )
 
 object Output {
-  def columnsToSelect: Iterable[String] = {
+  def columnsToSelect: List[String] = {
     Seq("identifier", "eventTime", "version") ++ values.map(kv => s"values.${kv._1}")
   }
 }

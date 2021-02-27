@@ -1,6 +1,6 @@
 import org.scalatest.FunSuite
-import pl.bondyra.smaz.Engine
 import pl.bondyra.smaz.output.IntervalOutputStrategy
+import pl.bondyra.smaz.spark.Engine
 
 class EngineTest extends FunSuite {
   test("User cannot create engine without configured input dataset"){
