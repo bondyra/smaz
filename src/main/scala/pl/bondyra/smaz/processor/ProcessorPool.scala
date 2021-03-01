@@ -1,15 +1,11 @@
 package pl.bondyra.smaz.processor
 
-import pl.bondyra.smaz.config.ProcessorDefinition
 
-class ProcessorPool private(processors: List[Processor]) {
+class ProcessorPool private (processors: List[Processor]) {
 
 }
 
 object ProcessorPool {
-  def create(definitions: List[ProcessorDefinition]): ProcessorPool =
-    new ProcessorPool(definitions.map(processorFromDefinition))
-
-  private def processorFromDefinition(definition: ProcessorDefinition): Processor =
-    new Processor
+  def create(processors: List[Processor]): ProcessorPool =
+    new ProcessorPool(processors.map(p => p.duplicate().asInstanceOf[p.getClass]))
 }

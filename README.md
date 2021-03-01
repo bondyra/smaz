@@ -3,22 +3,6 @@ This is the place where I will (hopefully) rewrite my old project that had some 
 
 Extensible wrapper over Spark Structured Streaming that facilitates custom processing.
 
-Scratch usage (pseudocode):
-```
-import smaz.pl.bondyra.smaz.Engine
-
-inputData = prepareYourDataset()
-
-engine = new pl.bondyra.smaz.Engine()
-.inputData(inputData)
-.identifierColumn("input column name")
-.eventTimeColumn("input column name")
-.sessionTimeout(<how many miliseconds must pass when a new session should start>)
-.intervalOutput(<miliseconds of event time when you want a new row out>)
-
-dataStreamWriter = engine.dataStreamWriter()
-doSomethingWithYour(dataStreamWriter)
-```
 
 TODO:
 - determine the safe scope
