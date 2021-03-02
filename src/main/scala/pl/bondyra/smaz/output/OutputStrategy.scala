@@ -1,7 +1,10 @@
 package pl.bondyra.smaz.output
 
+import pl.bondyra.smaz.spark.InputSpec
 
-trait OutputStrategy
+
+abstract class OutputStrategy[I](inputSpec: InputSpec[I])
 
 
-class IntervalOutputStrategy(val intervalInMiliseconds: Long) extends OutputStrategy
+class IntervalOutputStrategy[I](val inputSpec: InputSpec[I], val intervalInMiliseconds: Long)
+  extends OutputStrategy[I](inputSpec)

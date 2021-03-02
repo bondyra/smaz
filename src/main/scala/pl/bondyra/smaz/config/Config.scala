@@ -1,3 +1,6 @@
 package pl.bondyra.smaz.config
 
-class Config(val idColumnName: String)
+class Config[I](
+            val idFunc: I => String,
+            val eventTimeFunc: I => String
+            )

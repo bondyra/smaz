@@ -9,7 +9,7 @@ import pl.bondyra.smaz.state.{State, StateCreator}
 
 case class InputRow(identifier: String, eventTime: Double)
 
-class Engine[I] private(val idFunc: I => String, val stateCreator: StateCreator[I]) {
+class Engine[I] private(val inputSpec: InputSpec[I], val stateCreator: StateCreator[I]) {
   implicit val stringEncoder: Encoder[String] = Encoders.kryo[String]
   implicit val stateEncoder: Encoder[State[I]] = Encoders.kryo[State[I]]
   implicit val outputEncoder: Encoder[Output] = Encoders.kryo[Output]
@@ -17,7 +17,7 @@ class Engine[I] private(val idFunc: I => String, val stateCreator: StateCreator[
 
   def run(dataset: Dataset[I]): DataFrame = {
     dataset
-      .groupByKey(idFunc)
+      .groupByKey(inputSpec.keyFunc)
       .flatMapGroupsWithState[State[I], Output](
       OutputMode.Append(),
       GroupStateTimeout.NoTimeout()
@@ -40,25 +40,12 @@ class Engine[I] private(val idFunc: I => String, val stateCreator: StateCreator[
 
 object Engine {
 
-  class Builder[I] {
+  class Builder[I](val inputSpec: InputSpec[I]) {
     private var processors: List[Processor] = List.empty
-    private var idFunc: Option[I => String] = None
-    private var eventTimeFunc: Option[I => String] = None
-    private var outputStrategyCreator: Option[() => OutputStrategy] = None
-
-    def idFunc(_idFunc: I => String): Builder[I] = {
-      idFunc = Option(_idFunc)
-      this
-    }
-
-    // TODO this must precede all lower functions!
-    def eventTimeFunc(_eventTimeFunc: I => String): Builder[I] = {
-      eventTimeFunc = Option(_eventTimeFunc)
-      this
-    }
+    private var outputStrategyCreator: Option[() => OutputStrategy[I]] = None
 
     def intervalOutput(intervalInMiliseconds: Long): Builder[I] = {
-      outputStrategyCreator = Option(() => new IntervalOutputStrategy(intervalInMiliseconds))
+      outputStrategyCreator = Option(() => new IntervalOutputStrategy[I](inputSpec, intervalInMiliseconds))
       this
     }
 
@@ -68,13 +55,10 @@ object Engine {
     }
 
     def build(): Engine[I] = {
-
-      // eventTimeFunc=resolveOption(eventTimeFunc)
-
       val stateCreator = new StateCreator[I](resolveOption(outputStrategyCreator), processors)
 
       new Engine[I](
-        idFunc = resolveOption(idFunc),
+        inputSpec = inputSpec,
         stateCreator = stateCreator
       )
     }
@@ -83,7 +67,6 @@ object Engine {
 
     class BuildException() extends Exception
 
-    def builder[I](): Builder[I] = new Builder[I]
+    def builder(inputSpec: InputSpec[I]): Builder[I] = new Builder[I](inputSpec)
   }
-
 }

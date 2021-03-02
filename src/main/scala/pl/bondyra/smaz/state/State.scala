@@ -1,14 +1,14 @@
 package pl.bondyra.smaz.state
-import pl.bondyra.smaz.output.{IntervalOutputStrategy, Output, OutputStrategy}
+import pl.bondyra.smaz.output.{Output, OutputStrategy}
 import pl.bondyra.smaz.processor.{Processor, ProcessorPool}
 
 import scala.collection.mutable
 
-class State[I] (val outputStrategy: OutputStrategy, val processorPool: ProcessorPool) {
+class State[I] (val outputStrategy: OutputStrategy[I], val processorPool: ProcessorPool) {
   private var currOutputs: mutable.Queue[Output] = new mutable.Queue[Output]()
   private var i: Int = 0
 
-  def update(input: I) = {
+  def update(input: I): Unit = {
     i+=1
     if (i % 2 == 0){
       currOutputs.enqueue()
@@ -19,7 +19,7 @@ class State[I] (val outputStrategy: OutputStrategy, val processorPool: Processor
 }
 
 
-class StateCreator[I](val outputStrategy: () => OutputStrategy,
+class StateCreator[I](val outputStrategy: () => OutputStrategy[I],
                       val processors: List[Processor]
                   ){
   def newState: State[I] = {
