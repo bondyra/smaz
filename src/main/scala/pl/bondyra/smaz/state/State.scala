@@ -4,7 +4,7 @@ import pl.bondyra.smaz.processor.{Processor, ProcessorPool}
 
 import scala.collection.mutable
 
-class State[I] (val outputStrategy: OutputStrategy[I], val processorPool: ProcessorPool) {
+class State[I] (val outputStrategy: OutputStrategy[I], val processorPool: ProcessorPool[I]) {
   private var currOutputs: mutable.Queue[Output] = new mutable.Queue[Output]()
   private var i: Int = 0
 
@@ -20,10 +20,10 @@ class State[I] (val outputStrategy: OutputStrategy[I], val processorPool: Proces
 
 
 class StateCreator[I](val outputStrategy: () => OutputStrategy[I],
-                      val processors: List[Processor]
+                      val processors: List[Processor[I]]
                   ){
   def newState: State[I] = {
-    val processorPool: ProcessorPool = ProcessorPool.create(processors)
+    val processorPool: ProcessorPool[I] = ProcessorPool.create(processors)
     new State[I](outputStrategy(), processorPool)
   }
 }

@@ -1,11 +1,11 @@
 package pl.bondyra.smaz.processor
 
 
-class ProcessorPool private (processors: List[Processor]) {
-
+class ProcessorPool[I] private (processors: List[Processor[I]]) {
+  def reset() = for (processor <- processors) processor.reset()
 }
 
 object ProcessorPool {
-  def create(processors: List[Processor]): ProcessorPool =
-    new ProcessorPool(processors.map(p => p.duplicate().asInstanceOf[p.getClass]))
+  def create[I](processors: List[Processor[I]]): ProcessorPool[I] =
+    new ProcessorPool[I](processors.map(_.duplicate()))
 }

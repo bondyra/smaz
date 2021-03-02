@@ -41,7 +41,7 @@ class Engine[I] private(val inputSpec: InputSpec[I], val stateCreator: StateCrea
 object Engine {
 
   class Builder[I](val inputSpec: InputSpec[I]) {
-    private var processors: List[Processor] = List.empty
+    private var processors: List[Processor[I]] = List.empty
     private var outputStrategyCreator: Option[() => OutputStrategy[I]] = None
 
     def intervalOutput(intervalInMiliseconds: Long): Builder[I] = {
@@ -49,7 +49,7 @@ object Engine {
       this
     }
 
-    def withProcessor(processor: Processor): Builder[I] = {
+    def withProcessor(processor: Processor[I]): Builder[I] = {
       processors ::= processor
       this
     }

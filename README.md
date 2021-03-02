@@ -12,7 +12,7 @@ TODO:
 - consider other pl.bondyra.smaz.output modes than event time interval (there was a batch marker one and a count based?)
 
 the scope as of Feb 2021:
-- slow TDD rewrite
+- slow rewrite
 - no YAML or other declarative config
 - basic ops without shared state
 
