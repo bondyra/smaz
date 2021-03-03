@@ -3,13 +3,13 @@ package pl.bondyra.smaz.spark
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.streaming.{GroupState, GroupStateTimeout, OutputMode}
 import org.apache.spark.sql.{Column, DataFrame, Dataset, Encoder, Encoders}
-import pl.bondyra.smaz.output.{IntervalOutputStrategy, Output, OutputStrategy}
+import pl.bondyra.smaz.input.Input
+import pl.bondyra.smaz.output.{Combiner, IntervalOutputStrategy, Output, OutputStrategy, SimpleCombiner}
 import pl.bondyra.smaz.processor.Processor
 import pl.bondyra.smaz.state.{State, StateCreator}
 
-case class InputRow(identifier: String, eventTime: Double)
 
-class Engine[I] private(val inputSpec: InputSpec[I], val stateCreator: StateCreator[I]) {
+class Engine[I <: Input] private(val stateCreator: StateCreator[I]) {
   implicit val stringEncoder: Encoder[String] = Encoders.kryo[String]
   implicit val stateEncoder: Encoder[State[I]] = Encoders.kryo[State[I]]
   implicit val outputEncoder: Encoder[Output] = Encoders.kryo[Output]
@@ -17,7 +17,7 @@ class Engine[I] private(val inputSpec: InputSpec[I], val stateCreator: StateCrea
 
   def run(dataset: Dataset[I]): DataFrame = {
     dataset
-      .groupByKey(inputSpec.keyFunc)
+      .groupByKey(_.identifier)
       .flatMapGroupsWithState[State[I], Output](
       OutputMode.Append(),
       GroupStateTimeout.NoTimeout()
@@ -40,12 +40,12 @@ class Engine[I] private(val inputSpec: InputSpec[I], val stateCreator: StateCrea
 
 object Engine {
 
-  class Builder[I](val inputSpec: InputSpec[I]) {
+  class Builder[I <: Input] {
     private var processors: List[Processor[I]] = List.empty
-    private var outputStrategyCreator: Option[() => OutputStrategy[I]] = None
+    private var createCombiner: Option[() => Combiner[I]] = None
 
     def intervalOutput(intervalInMiliseconds: Long): Builder[I] = {
-      outputStrategyCreator = Option(() => new IntervalOutputStrategy[I](inputSpec, intervalInMiliseconds))
+      createCombiner = Option(() => new SimpleCombiner[I](new IntervalOutputStrategy[I](intervalInMiliseconds)))
       this
     }
 
@@ -55,10 +55,9 @@ object Engine {
     }
 
     def build(): Engine[I] = {
-      val stateCreator = new StateCreator[I](resolveOption(outputStrategyCreator), processors)
+      val stateCreator = new StateCreator[I](resolveOption(createCombiner), processors)
 
       new Engine[I](
-        inputSpec = inputSpec,
         stateCreator = stateCreator
       )
     }
@@ -67,6 +66,6 @@ object Engine {
 
     class BuildException() extends Exception
 
-    def builder(inputSpec: InputSpec[I]): Builder[I] = new Builder[I](inputSpec)
+    def builder: Builder[I] = new Builder[I]
   }
 }

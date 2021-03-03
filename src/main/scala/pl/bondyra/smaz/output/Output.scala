@@ -10,9 +10,3 @@ case class Output (
                   // I need to find a smarter way to map this class (with hidden dynamic processor output in Map[String, String]
                   // into a dynamic spark row
 )
-
-object Output {
-  def columnsToSelect: List[String] = {
-    Seq("identifier", "eventTime", "version") ++ values.map(kv => s"values.${kv._1}")
-  }
-}

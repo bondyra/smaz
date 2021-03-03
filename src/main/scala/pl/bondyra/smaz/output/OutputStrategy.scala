@@ -1,10 +1,21 @@
 package pl.bondyra.smaz.output
 
-import pl.bondyra.smaz.spark.InputSpec
+import pl.bondyra.smaz.input.Input
 
 
-abstract class OutputStrategy[I](inputSpec: InputSpec[I])
+trait OutputStrategy[I <: Input] {
+  def canDo(input: I): Boolean
+}
 
 
-class IntervalOutputStrategy[I](val inputSpec: InputSpec[I], val intervalInMiliseconds: Long)
-  extends OutputStrategy[I](inputSpec)
+class IntervalOutputStrategy[I <: Input](val intervalInMiliseconds: Double) extends OutputStrategy[I] {
+  private var markedEventTime: Double = 0d
+
+  def canDo(input: I): Boolean = {
+    if (input.eventTime >= markedEventTime + intervalInMiliseconds){
+      markedEventTime = input.eventTime
+      return true
+    }
+    false
+  }
+}

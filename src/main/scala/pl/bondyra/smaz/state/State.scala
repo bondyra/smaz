@@ -1,29 +1,23 @@
 package pl.bondyra.smaz.state
-import pl.bondyra.smaz.output.{Output, OutputStrategy}
+import pl.bondyra.smaz.input.Input
+import pl.bondyra.smaz.output.{Combiner, Output}
 import pl.bondyra.smaz.processor.{Processor, ProcessorPool}
 
-import scala.collection.mutable
-
-class State[I] (val outputStrategy: OutputStrategy[I], val processorPool: ProcessorPool[I]) {
-  private var currOutputs: mutable.Queue[Output] = new mutable.Queue[Output]()
-  private var i: Int = 0
-
+class State[I <: Input](val combiner: Combiner[I], val processorPool: ProcessorPool[I]) {
   def update(input: I): Unit = {
-    i+=1
-    if (i % 2 == 0){
-      currOutputs.enqueue()
-    }
+    processorPool.update(input)
+    combiner.doWork(input, processorPool.currentOutputs)
   }
 
-  def outputs(): Iterator[Output] = currOutputs.dequeueAll(_ => true).iterator
+  def outputs(): Iterator[Output] = combiner.drainOutputs()
 }
 
 
-class StateCreator[I](val outputStrategy: () => OutputStrategy[I],
+class StateCreator[I <: Input](val createCombiner: () => Combiner[I],
                       val processors: List[Processor[I]]
                   ){
   def newState: State[I] = {
     val processorPool: ProcessorPool[I] = ProcessorPool.create(processors)
-    new State[I](outputStrategy(), processorPool)
+    new State[I](createCombiner(), processorPool)
   }
 }

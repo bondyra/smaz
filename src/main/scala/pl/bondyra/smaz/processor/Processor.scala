@@ -1,21 +1,26 @@
 package pl.bondyra.smaz.processor
 
-abstract class Processor[I](val name: String) {
+import pl.bondyra.smaz.input.Input
+
+abstract class Processor[I <: Input](val name: String) {
   def duplicate(): Processor[I]
   def reset(): Unit
   def update(row: I): Unit
+  def stringValue: String
 }
 
 
-class ColumnIntSumProcessor[I](name: String, getAggregatedValue: I => Int) extends Processor[I](name){
+class IntSumProcessor[I <: Input](name: String, getValue: I => Int) extends Processor[I](name){
   var currentSum: Int = 0
-  override def duplicate(): Processor[I] = new ColumnIntSumProcessor[I](name, getAggregatedValue)
+  override def duplicate(): Processor[I] = new IntSumProcessor[I](name, getValue)
 
   override def reset(): Unit = {
     currentSum = 0
   }
 
   override def update(row: I): Unit = {
-    currentSum += getAggregatedValue(row)
+    currentSum += getValue(row)
   }
+
+  override def stringValue: String = currentSum.toString
 }
