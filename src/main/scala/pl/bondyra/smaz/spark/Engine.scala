@@ -55,6 +55,8 @@ object Engine {
     }
 
     def build(): Engine[I] = {
+      if (processors.isEmpty)
+        throw new BuildException()
       val stateCreator = new StateCreator[I](resolveOption(createCombiner), processors)
 
       new Engine[I](
@@ -63,9 +65,9 @@ object Engine {
     }
 
     private def resolveOption[A](option: Option[A]): A = option.getOrElse(throw new BuildException())
-
-    class BuildException() extends Exception
-
-    def builder: Builder[I] = new Builder[I]
   }
+
+  class BuildException() extends Exception
+
+  def builder[I <: Input]: Builder[I] = new Builder[I]
 }

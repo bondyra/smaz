@@ -1,75 +1,35 @@
 import org.scalatest.FunSuite
-import pl.bondyra.smaz.output.IntervalOutputStrategy
+import pl.bondyra.smaz.input.Input
+import pl.bondyra.smaz.processor.IntSumProcessor
 import pl.bondyra.smaz.spark.Engine
+import pl.bondyra.smaz.spark.Engine.BuildException
 
 class EngineTest extends FunSuite {
-  test("User cannot create engine without configured input dataset"){
+  private case class ExampleInput(value: Int) extends Input{
+    override def identifier: String = "dummy"
+    override def eventTime: Double = 10
+  }
+
+  test("User cannot create engine without processors"){
     assertThrows[BuildException](
-      Engine.builder()
-        .identifierColumn("a")
-        .eventTimeColumn("a")
+      Engine.builder
         .intervalOutput(1)
-        .sessionTimeout(1)
         .build()
     )
   }
 
-  test("User cannot create engine without configured identifier column"){
+  test("User cannot create engine without configured output algorithm"){
     assertThrows[BuildException](
-      Engine.builder()
-        .eventTimeColumn("a")
-        .intervalOutput(1)
-        .sessionTimeout(1)
-        .build()
-    )
-  }
-
-  test("User cannot create engine without configured event time column"){
-    assertThrows[BuildException](
-      Engine.builder()
-        .inputData(1)
-        .identifierColumn("ab")
-        .intervalOutput(1)
-        .sessionTimeout(1)
-        .build()
-    )
-  }
-
-  test("User cannot create engine without configured pl.bondyra.smaz.output mode"){
-    assertThrows[BuildException](
-      Engine.builder()
-        .inputData(1)
-        .identifierColumn("a")
-        .eventTimeColumn("a")
-        .sessionTimeout(1)
-        .build()
-    )
-  }
-
-  test("User cannot create engine without configured session timeout"){
-    assertThrows[BuildException](
-      Engine.builder()
-        .inputData(1)
-        .identifierColumn("a")
-        .eventTimeColumn("a")
-        .intervalOutput(1)
+      Engine.builder[ExampleInput]
+          .withProcessor(new IntSumProcessor[ExampleInput]("name", _.value))
         .build()
     )
   }
 
   test("User can create engine with required config and can see this config"){
-    val engine: Engine = Engine.builder()
-      .inputData(1)
-      .identifierColumn("ic")
-      .eventTimeColumn("etc")
+    Engine.builder
       .intervalOutput(1)
-      .sessionTimeout(1)
+      .withProcessor(new IntSumProcessor[ExampleInput]("name", _.value))
       .build()
-
-    assert(engine.inputData == 1)
-    assert(engine.identifierColumn == "ic")
-    assert(engine.eventTimeColumn == "etc")
-    assert(engine.outputStrategy.isInstanceOf[IntervalOutputStrategy])
-    assert(engine.sessionTimeout == 1)
   }
 }
