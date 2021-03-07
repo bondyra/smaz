@@ -4,15 +4,18 @@ import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.streaming.{GroupState, GroupStateTimeout, OutputMode}
 import org.apache.spark.sql.{Column, DataFrame, Dataset, Encoder, Encoders}
 import pl.bondyra.smaz.input.Input
-import pl.bondyra.smaz.output.{Combiner, IntervalOutputStrategy, Output, OutputStrategy, SimpleCombiner}
+import pl.bondyra.smaz.output.{Combiner, IntervalOutputStrategy, Output, SimpleCombiner}
 import pl.bondyra.smaz.processor.Processor
 import pl.bondyra.smaz.state.{State, StateCreator}
 
+import scala.reflect.ClassTag
+import scala.reflect.runtime.universe.TypeTag
 
-class Engine[I <: Input] private(val stateCreator: StateCreator[I]) {
-  implicit val stringEncoder: Encoder[String] = Encoders.kryo[String]
+class Engine[I <: Input: Encoder: TypeTag: ClassTag] private(val stateCreator: StateCreator[I]) {
+  implicit val iEncoder: Encoder[I] = Encoders.kryo[I]
   implicit val stateEncoder: Encoder[State[I]] = Encoders.kryo[State[I]]
-  implicit val outputEncoder: Encoder[Output] = Encoders.kryo[Output]
+  implicit val stringEncoder: Encoder[String] = Encoders.STRING
+  implicit val outputEncoder: Encoder[Output] = Encoders.product[Output]
 
 
   def run(dataset: Dataset[I]): DataFrame = {
@@ -34,7 +37,9 @@ class Engine[I <: Input] private(val stateCreator: StateCreator[I]) {
     state.outputs()
   }
 
-  private def columnsToSelect: Seq[Column] = stateCreator.processors.map(p => col(p.name))
+  private def columnsToSelect: List[Column] =
+    stateCreator.processors.map(p => col(s"values.${p.name}").as(p.name)) ++
+      List("identifier", "eventTime", "version").map(col)
 }
 
 

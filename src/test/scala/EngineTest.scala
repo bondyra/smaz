@@ -7,7 +7,7 @@ import pl.bondyra.smaz.spark.Engine.BuildException
 class EngineTest extends FunSuite {
   private case class ExampleInput(value: Int) extends Input{
     override def identifier: String = "dummy"
-    override def eventTime: Double = 10
+    override def eventTime: Long = 10
   }
 
   test("User cannot create engine without processors"){
