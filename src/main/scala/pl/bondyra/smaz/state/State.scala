@@ -13,10 +13,8 @@ class State[I <: Input](val combiner: Combiner[I], val processorPool: ProcessorP
 }
 
 
-class StateCreator[I <: Input](val createCombiner: () => Combiner[I],
-                      val processors: List[Processor[I]]
-                  ){
-  def newState: State[I] = {
+class StateCreator[I <: Input](val createCombiner: () => Combiner[I], val processors: List[Processor[I]]) extends java.io.Serializable {
+  def newState(): State[I] = {
     val processorPool: ProcessorPool[I] = ProcessorPool.create(processors)
     new State[I](createCombiner(), processorPool)
   }

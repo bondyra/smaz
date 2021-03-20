@@ -2,7 +2,7 @@ package pl.bondyra.smaz.processor
 
 import pl.bondyra.smaz.input.Input
 
-abstract class Processor[I <: Input](val name: String) {
+abstract class Processor[I <: Input](val name: String) extends java.io.Serializable {
   def duplicate(): Processor[I]
   def reset(): Unit
   def update(row: I): Unit

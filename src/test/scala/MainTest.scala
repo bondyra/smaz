@@ -1,19 +1,14 @@
-
-
-import java.io.{File, FileFilter}
+import java.io.File
 import java.nio.charset.Charset
 import java.util.UUID.randomUUID
 
 import org.apache.commons.io.FileUtils
-import org.apache.commons.io.filefilter.WildcardFileFilter
 import org.apache.spark.sql.types.{DataTypes, StructField, StructType}
-import org.apache.spark.sql.{Dataset, Encoders, SparkSession}
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuite}
+import org.apache.spark.sql.{Dataset, Encoder, Encoders, SparkSession}
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuite, Matchers}
 import pl.bondyra.smaz.input.Input
 import pl.bondyra.smaz.processor.IntSumProcessor
 import pl.bondyra.smaz.spark.Engine
-
-import scala.collection.mutable
 
 case class ExampleInput(id: String, timestamp: Long, value: Int) extends Input {
   override def identifier: String = id
@@ -21,10 +16,16 @@ case class ExampleInput(id: String, timestamp: Long, value: Int) extends Input {
   override def eventTime: Long = timestamp
 }
 
-class MainTest extends FunSuite with BeforeAndAfterAll with BeforeAndAfterEach {
+case class Result(identifier: String, eventTime: Long, version: Long, MY_SUM: String)
+
+object implicits {
+  implicit val inputEncoder: Encoder[ExampleInput] = Encoders.product[ExampleInput]
+  implicit val resultEncoder: Encoder[Result] = Encoders.product[Result]
+}
+
+class MainTest extends FunSuite with BeforeAndAfterAll with BeforeAndAfterEach with Matchers {
   var inputDirPath: String = _
   var checkpointDirPath: String = _
-  var outputDirPath: String = _
 
   var sparkSession: SparkSession = _
   var runId: String = _
@@ -37,16 +38,14 @@ class MainTest extends FunSuite with BeforeAndAfterAll with BeforeAndAfterEach {
   }
 
   override def beforeEach() {
-    runId = randomUUID().toString
+    runId = randomUUID().toString.replace("-", "")
     inputDirPath = s"test-input-$runId"
     checkpointDirPath = s"test-checkpoint-$runId"
-    outputDirPath = s"test-output-$runId"
   }
 
   override def afterEach() {
     FileUtils.deleteDirectory(new File(inputDirPath))
     FileUtils.deleteDirectory(new File(checkpointDirPath))
-    FileUtils.deleteDirectory(new File(outputDirPath))
   }
 
   def prepareData(inputs: ExampleInput*): Unit = {
@@ -72,7 +71,7 @@ class MainTest extends FunSuite with BeforeAndAfterAll with BeforeAndAfterEach {
       ExampleInput("a", 2, 1),
       ExampleInput("b", 2, 1),
       ExampleInput("a", 3, 1),
-      ExampleInput("b", 3, 1)
+      ExampleInput("b", 3, 1),
     )
     sparkSession
       .readStream
@@ -83,46 +82,29 @@ class MainTest extends FunSuite with BeforeAndAfterAll with BeforeAndAfterEach {
   }
 
   test("test") {
+    import implicits._
     Engine.builder
       .withProcessor(new IntSumProcessor[ExampleInput]("MY_SUM", _.value))
       .intervalOutput(1)
       .build()
       .run(inputDataset)
       .writeStream
-      .format("csv")
-      .option("header", "true")
+      .queryName(runId)
       .option("checkpointLocation", checkpointDirPath)
       .outputMode("append")
-      .start(outputDirPath)
-      .awaitTermination(8 * 1000)
+      .format("memory")
+      .start()
+      .awaitTermination(4 * 1000)
 
-    val header: String = "identifier,eventTime,version,MY_SUM"
-    checkOutput(
-      ("a", s"$header|a,2,1,2|a,3,2,3".replace("|", "\n")),
-      ("b", s"$header|b,2,1,2|b,3,2,3".replace("|", "\n"))
-    )
-  }
-
-  def checkOutput(keysAndContents: (String, String)*): Unit = {
-    val fileContents = getAllNonEmptySparkFileContents(outputDirPath)
-    assert(fileContents.length == keysAndContents.size)
-    val alreadyAssertedGroups = mutable.HashSet[String]()
-    for ((key, content) <- keysAndContents) {
-      for (fileContent <- fileContents) {
-        if (fileContent.contains(key)) {
-          assert(!alreadyAssertedGroups.contains(key))
-          assert(fileContent == content)
-          alreadyAssertedGroups.add(key)
-        }
-      }
-    }
-  }
-
-  def getAllNonEmptySparkFileContents(dirPath: String): Array[String] = {
-    val filter: FileFilter = new WildcardFileFilter("part-*.csv")
-    new File(dirPath)
-      .listFiles(filter)
-      .filter(f => f.length > 0)
-      .map(f => FileUtils.readFileToString(f, Charset.defaultCharset()))
+    val actualResults: Array[Result] = sparkSession.sql(s"select * from $runId").as[Result].collect()
+    val expectedResults: Array[Result] = Array(
+        Result(identifier = "a", eventTime = 1, version = 0, MY_SUM = "1"),
+        Result(identifier = "a", eventTime = 2, version = 1, MY_SUM = "2"),
+        Result(identifier = "a", eventTime = 3, version = 2, MY_SUM = "3"),
+        Result(identifier = "b", eventTime = 1, version = 0, MY_SUM = "1"),
+        Result(identifier = "b", eventTime = 2, version = 1, MY_SUM = "2"),
+        Result(identifier = "b", eventTime = 3, version = 2, MY_SUM = "3")
+      )
+    actualResults should contain theSameElementsAs expectedResults
   }
 }

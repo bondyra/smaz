@@ -8,11 +8,9 @@ import pl.bondyra.smaz.output.{Combiner, IntervalOutputStrategy, Output, SimpleC
 import pl.bondyra.smaz.processor.Processor
 import pl.bondyra.smaz.state.{State, StateCreator}
 
-import scala.reflect.ClassTag
-import scala.reflect.runtime.universe.TypeTag
-
-class Engine[I <: Input: Encoder: TypeTag: ClassTag] private(val stateCreator: StateCreator[I]) {
-  implicit val iEncoder: Encoder[I] = Encoders.kryo[I]
+class Engine[I <: Input : Encoder] private(val stateCreator: StateCreator[I])(implicit val inputEncoder: Encoder[I])
+  extends java.io.Serializable {
+  implicit val engineEncoder: Encoder[Engine[I]] = Encoders.kryo[Engine[I]]
   implicit val stateEncoder: Encoder[State[I]] = Encoders.kryo[State[I]]
   implicit val stringEncoder: Encoder[String] = Encoders.STRING
   implicit val outputEncoder: Encoder[Output] = Encoders.product[Output]
@@ -29,7 +27,7 @@ class Engine[I <: Input: Encoder: TypeTag: ClassTag] private(val stateCreator: S
   }
 
   def procFunc(s: String, inputs: Iterator[I], groupState: GroupState[State[I]]): Iterator[Output] = {
-    val state: State[I] = if (groupState.exists) groupState.get else stateCreator.newState
+    val state: State[I] = if (groupState.exists) groupState.get else stateCreator.newState()
     for (input <- inputs) {
       state.update(input)
     }
@@ -38,8 +36,8 @@ class Engine[I <: Input: Encoder: TypeTag: ClassTag] private(val stateCreator: S
   }
 
   private def columnsToSelect: List[Column] =
-    stateCreator.processors.map(p => col(s"values.${p.name}").as(p.name)) ++
-      List("identifier", "eventTime", "version").map(col)
+      List("identifier", "eventTime", "version").map(col) ++
+        stateCreator.processors.map(p => col(s"values.${p.name}").as(p.name))
 }
 
 
@@ -59,7 +57,7 @@ object Engine {
       this
     }
 
-    def build(): Engine[I] = {
+    def build()(implicit inputEncoder: Encoder[I]): Engine[I] = {
       if (processors.isEmpty)
         throw new BuildException()
       val stateCreator = new StateCreator[I](resolveOption(createCombiner), processors)
